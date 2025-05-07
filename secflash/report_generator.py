@@ -1,3 +1,8 @@
+# secflash/report_generator.py
+"""
+PDF report generator for vulnerability scan results.
+"""
+
 import os
 from reportlab.lib.pagesizes import letter, A5
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
@@ -7,35 +12,64 @@ from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import logging
-from typing import Dict, List
+from typing import Dict, List, Any
 from datetime import datetime
+from babel.support import Translations
 
-# Настраиваем логирование
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from .config import config
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("report_generator.log"),
+        logging.StreamHandler()
+    ]
+)
+
 
 class ReportGenerator:
-    def __init__(self):
-        # Регистрация шрифтов DejaVuSans
+    """A class for generating security vulnerability reports.
+    
+    This class provides functionality to create detailed PDF reports
+    about security vulnerabilities found during analysis.
+    
+    Attributes:
+        template (SimpleDocTemplate): PDF document template
+        styles (Dict): Dictionary of paragraph styles
+    """
+
+    def __init__(self, output_path: str = "vulnerability_report.pdf") -> None:
+        """Initialize the ReportGenerator.
+        
+        Args:
+            output_path (str): Path where the PDF report will be saved.
+                Defaults to "vulnerability_report.pdf".
+        """
+        self.output_path = output_path
+        self._setup_document()
+
+    def _setup_document(self):
+        # Load fonts
+        font_path = os.path.join(config.FONT_DIR, 'DejaVuSans.ttf')
+        font_bold_path = os.path.join(config.FONT_DIR, 'DejaVuSans-Bold.ttf')
+        
         try:
-            font_dir = os.path.join(os.path.dirname(__file__), 'fonts')
-            font_path = os.path.join(font_dir, 'DejaVuSans.ttf')
-            font_bold_path = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
             if os.path.exists(font_path) and os.path.exists(font_bold_path):
                 pdfmetrics.registerFont(TTFont('DejaVuSans', font_path))
                 pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', font_bold_path))
                 self.font_name = 'DejaVuSans'
                 self.font_bold = 'DejaVuSans-Bold'
-                logging.info("Шрифты DejaVuSans успешно загружены")
+                logging.info("DejaVuSans fonts loaded successfully")
             else:
-                logging.warning("Шрифты DejaVuSans не найдены, используется Helvetica")
-                self.font_name = 'Helvetica'
-                self.font_bold = 'Helvetica-Bold'
+                raise FileNotFoundError("DejaVuSans fonts not found")
         except Exception as e:
-            logging.error(f"Ошибка загрузки шрифтов: {str(e)}")
+            logging.warning(f"Font loading error: {str(e)}. Using Helvetica")
             self.font_name = 'Helvetica'
             self.font_bold = 'Helvetica-Bold'
 
-        # Инициализация стилей
+        # Initialize styles
         self.styles = getSampleStyleSheet()
         custom_styles = {
             'ReportTitle': {
@@ -134,9 +168,33 @@ class ReportGenerator:
         for style_name, style_params in custom_styles.items():
             self.styles.add(ParagraphStyle(name=style_name, **style_params))
 
-        self.logo_path = os.path.join(os.path.dirname(__file__), 'logo.png')
+        self.logo_path = config.LOGO_PATH
+        if not os.path.exists(self.logo_path):
+            logging.warning("Logo file not found, reports will be generated without a logo")
 
-    def _add_title_page(self, story: List, network_data: Dict, use_gradient: bool = False, white_text: bool = False, booklet: bool = False):
+    def _load_translations(self, language: str) -> Translations:
+        """Load translations for the specified language."""
+        try:
+            translations = Translations.load(
+                dirname=os.path.join(os.path.dirname(__file__), 'translations'),
+                locales=[language],
+                domain='messages'
+            )
+            logging.info(f"Loaded translations for language: {language}")
+            return translations
+        except Exception as e:
+            logging.error(f"Failed to load translations for {language}: {str(e)}")
+            return Translations.load(
+                dirname=os.path.join(os.path.dirname(__file__), 'translations'),
+                locales=['en'],
+                domain='messages'
+            )
+
+    def _add_title_page(self, story: List, network_data: Dict, use_gradient: bool = False, 
+                        white_text: bool = False, booklet: bool = False, language: str = "en"):
+        """Add the title page to the report."""
+        translations = self._load_translations(language)
+
         def add_gradient(canvas, doc):
             canvas.saveState()
             canvas.setFillColor(colors.HexColor("#000000"))
@@ -169,18 +227,35 @@ class ReportGenerator:
             self.styles['ReportTitle'].textColor = colors.black
             self.styles['ReportSubTitle'].textColor = colors.black
 
-        story.append(Paragraph("ОТЧЕТ ОБ АНАЛИЗЕ УЯЗВИМОСТЕЙ", self.styles[title_style]))
+        story.append(Paragraph(
+            translations.gettext("VULNERABILITY ANALYSIS REPORT"),
+            self.styles[title_style]
+        ))
         story.append(Spacer(1, 0.3*inch if booklet else 0.5*inch))
 
         meta = [
-            [Paragraph("Организация:", self.styles[text_style]), 
-             Paragraph(network_data.get("location", "Не указана"), self.styles[text_style])],
-            [Paragraph("Дата сканирования:", self.styles[text_style]), 
-             Paragraph(network_data["hosts"][0]["time"] if network_data.get("hosts") else "Не указана", self.styles[text_style])],
-            [Paragraph("Дата генерации отчета:", self.styles[text_style]), 
-             Paragraph(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.styles[text_style])],
-            [Paragraph("Сгенерировано:", self.styles[text_style]), 
-             Paragraph("SecFlash Vulnerability Scanner", self.styles[text_style])]
+            [
+                Paragraph(translations.gettext("Organization:"), self.styles[text_style]),
+                Paragraph(
+                    network_data.get("location", translations.gettext("Not specified")),
+                    self.styles[text_style]
+                )
+            ],
+            [
+                Paragraph(translations.gettext("Scan Date:"), self.styles[text_style]),
+                Paragraph(
+                    network_data["hosts"][0]["time"] if network_data.get("hosts") else translations.gettext("Not specified"),
+                    self.styles[text_style]
+                )
+            ],
+            [
+                Paragraph(translations.gettext("Report Generated:"), self.styles[text_style]),
+                Paragraph(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), self.styles[text_style])
+            ],
+            [
+                Paragraph(translations.gettext("Generated By:"), self.styles[text_style]),
+                Paragraph(translations.gettext("SecFlash Vulnerability Scanner"), self.styles[text_style])
+            ]
         ]
 
         meta_table = Table(meta, colWidths=[1.2*inch if booklet else 1.5*inch, 3.2*inch if booklet else 4*inch])
@@ -198,12 +273,15 @@ class ReportGenerator:
 
         story.append(meta_table)
         story.append(Spacer(1, 0.6*inch if booklet else 1*inch))
-        story.append(Paragraph("Конфиденциально", self.styles[text_style]))
-        story.append(Paragraph("Только для внутреннего использования", self.styles[text_style]))
+        story.append(Paragraph(translations.gettext("Confidential"), self.styles[text_style]))
+        story.append(Paragraph(translations.gettext("For internal use only"), self.styles[text_style]))
 
         return add_gradient if use_gradient else add_white_background
 
-    def _add_executive_summary(self, story: List, findings: List[Dict], network_data: Dict, white_text: bool = False, booklet: bool = False):
+    def _add_executive_summary(self, story: List, findings: List[Dict], network_data: Dict, 
+                              white_text: bool = False, booklet: bool = False, language: str = "en"):
+        """Add executive summary section to the report."""
+        translations = self._load_translations(language)
         text_style = 'ReportWhiteText' if white_text else 'ReportBodyText'
         heading_style = 'ReportHeading1'
         if white_text:
@@ -211,24 +289,24 @@ class ReportGenerator:
         else:
             self.styles['ReportHeading1'].textColor = colors.black
 
-        story.append(Paragraph("КРАТКОЕ СОДЕРЖАНИЕ", self.styles[heading_style]))
+        story.append(Paragraph(translations.gettext("EXECUTIVE SUMMARY"), self.styles[heading_style]))
 
         severity_counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0, "N/A": 0}
         for f in findings:
             severity = f["severity"] if f["severity"] in severity_counts else "N/A"
             severity_counts[severity] += 1
 
-        summary_text = (
-            f"В ходе анализа сети было обнаружено <b>{len(findings)} уязвимостей</b> на "
-            f"<b>{len([h for h in network_data.get('hosts', []) if h.get('status') == 'active'])} хостах</b>.\n\n"
-            f"<b>Распределение по критичности:</b>\n"
-            f"• <font color=red>Критические: {severity_counts['Critical']}</font>\n"
-            f"• <font color=orangered>Высокие: {severity_counts['High']}</font>\n"
-            f"• <font color=orange>Средние: {severity_counts['Medium']}</font>\n"
-            f"• <font color=green>Низкие: {severity_counts['Low']}</font>\n"
-            f"• Неизвестно (N/A): {severity_counts['N/A']}\n\n"
-            f"<b>Наиболее опасные уязвимости:</b>\n"
-        )
+        host_count = len([h for h in network_data.get('hosts', []) if h.get('status') == 'active'])
+        summary_text = translations.gettext(
+            "Network analysis identified <b>{count} vulnerabilities</b> across <b>{host_count} hosts</b>."
+        ).format(count=len(findings), host_count=host_count) + "\n\n"
+        summary_text += f"<b>{translations.gettext('Severity Distribution:')}</b>\n"
+        summary_text += f"• <font color=red>{translations.gettext('Critical:')} {severity_counts['Critical']}</font>\n"
+        summary_text += f"• <font color=orangered>{translations.gettext('High:')} {severity_counts['High']}</font>\n"
+        summary_text += f"• <font color=orange>{translations.gettext('Medium:')} {severity_counts['Medium']}</font>\n"
+        summary_text += f"• <font color=green>{translations.gettext('Low:')} {severity_counts['Low']}</font>\n"
+        summary_text += f"• {translations.gettext('Unknown (N/A):')} {severity_counts['N/A']}\n\n"
+        summary_text += f"<b>{translations.gettext('Most Severe Vulnerabilities:')}</b>\n"
 
         top_critical = sorted(
             [f for f in findings if f["severity"] in ["Critical", "High"]],
@@ -238,17 +316,20 @@ class ReportGenerator:
 
         for vuln in top_critical:
             summary_text += (
-                f"• <b>{vuln['cve_id']}</b> ({vuln['service']} на {vuln['ip']}) - "
+                f"• <b>{vuln['cve_id']}</b> ({vuln['service']} on {vuln['ip']}) - "
                 f"CVSS: <font color={'red' if float(vuln['cvss']) >= 9.0 else 'orange'}>{vuln['cvss']}</font>\n"
             )
 
         if not top_critical:
-            summary_text += "• Отсутствуют критические или высокие уязвимости\n"
+            summary_text += f"• {translations.gettext('No critical or high vulnerabilities detected')}\n"
 
         story.append(Paragraph(summary_text, self.styles[text_style]))
         story.append(Spacer(1, 0.15*inch if booklet else 0.25*inch))
 
-    def _add_vulnerabilities_table(self, story: List, findings: List[Dict], white_text: bool = False, booklet: bool = False):
+    def _add_vulnerabilities_table(self, story: List, findings: List[Dict], 
+                                   white_text: bool = False, booklet: bool = False, language: str = "en"):
+        """Add detailed vulnerabilities table to the report."""
+        translations = self._load_translations(language)
         heading_style = 'ReportHeading1'
         if white_text:
             self.styles['ReportHeading1'].textColor = colors.whitesmoke
@@ -256,14 +337,28 @@ class ReportGenerator:
             self.styles['ReportHeading1'].textColor = colors.black
         text_style = 'ReportWhiteText' if white_text else 'ReportBodyText'
 
-        story.append(Paragraph("ДЕТАЛЬНЫЙ ОТЧЕТ ОБ УЯЗВИМОСТЯХ", self.styles[heading_style]))
+        story.append(Paragraph(
+            translations.gettext("DETAILED VULNERABILITY REPORT"),
+            self.styles[heading_style]
+        ))
         story.append(Spacer(1, 0.15*inch if booklet else 0.2*inch))
 
         if not findings:
-            story.append(Paragraph("Уязвимости не обнаружены", self.styles[text_style]))
+            story.append(Paragraph(
+                translations.gettext("No vulnerabilities detected"),
+                self.styles[text_style]
+            ))
             return
 
-        vuln_data = [["IP", "Порты", "Сервис", "CVE ID", "Крит.", "CVSS", "Описание"]]
+        vuln_data = [[
+            translations.gettext("IP"),
+            translations.gettext("Ports"),
+            translations.gettext("Service"),
+            translations.gettext("CVE ID"),
+            translations.gettext("Sev."),
+            translations.gettext("CVSS"),
+            translations.gettext("Description")
+        ]]
         for finding in findings:
             max_desc_length = 150 if booklet else 200
             description = finding["description"]
@@ -320,7 +415,10 @@ class ReportGenerator:
         story.append(vuln_table)
         story.append(Spacer(1, 0.15*inch if booklet else 0.2*inch))
 
-    def _add_recommendations_section(self, story: List, findings: List[Dict], white_text: bool = False, booklet: bool = False):
+    def _add_recommendations_section(self, story: List, findings: List[Dict], 
+                                    white_text: bool = False, booklet: bool = False, language: str = "en"):
+        """Add recommendations section to the report."""
+        translations = self._load_translations(language)
         heading_style = 'ReportHeading1'
         if white_text:
             self.styles['ReportHeading1'].textColor = colors.whitesmoke
@@ -329,14 +427,24 @@ class ReportGenerator:
         text_style = 'ReportWhiteText' if white_text else 'ReportBodyText'
 
         story.append(PageBreak())
-        story.append(Paragraph("РЕКОМЕНДАЦИИ ПО УСТРАНЕНИЮ", self.styles[heading_style]))
+        story.append(Paragraph(
+            translations.gettext("RECOMMENDATIONS FOR REMEDIATION"),
+            self.styles[heading_style]
+        ))
         story.append(Spacer(1, 0.15*inch if booklet else 0.2*inch))
 
         if not findings:
-            story.append(Paragraph("Рекомендации отсутствуют: уязвимости не обнаружены", self.styles[text_style]))
+            story.append(Paragraph(
+                translations.gettext("No recommendations: no vulnerabilities detected"),
+                self.styles[text_style]
+            ))
             return
 
-        rec_data = [["CVE ID", "IP", "Рекомендации"]]
+        rec_data = [[
+            translations.gettext("CVE ID"),
+            translations.gettext("IP"),
+            translations.gettext("Recommendations")
+        ]]
         for finding in sorted(findings, key=lambda x: (
             -float(x["cvss"]) if x["cvss"] != "N/A" else 0,
             x["ip"],
@@ -385,7 +493,10 @@ class ReportGenerator:
         story.append(rec_table)
         story.append(Spacer(1, 0.15*inch if booklet else 0.2*inch))
 
-    def _add_conclusions_section(self, story: List, findings: List[Dict], white_text: bool = False, booklet: bool = False):
+    def _add_conclusions_section(self, story: List, findings: List[Dict], 
+                                white_text: bool = False, booklet: bool = False, language: str = "en"):
+        """Add conclusions section to the report."""
+        translations = self._load_translations(language)
         heading_style = 'ReportHeading1'
         text_style = 'ReportWhiteConclusionText' if white_text else 'ReportConclusionText'
         bullet_style = 'ReportWhiteBullet' if white_text else 'ReportBullet'
@@ -396,12 +507,15 @@ class ReportGenerator:
             self.styles['ReportHeading1'].textColor = colors.black
 
         story.append(PageBreak())
-        story.append(Paragraph("ВЫВОДЫ", self.styles[heading_style]))
+        story.append(Paragraph(
+            translations.gettext("CONCLUSIONS"),
+            self.styles[heading_style]
+        ))
         story.append(Spacer(1, 0.15*inch if booklet else 0.2*inch))
 
         if not findings:
             story.append(Paragraph(
-                "Уязвимости не обнаружены, рисков эксплуатации нет.",
+                translations.gettext("No vulnerabilities detected; no exploitation risks identified."),
                 self.styles[text_style]
             ))
             return
@@ -409,17 +523,19 @@ class ReportGenerator:
         critical_findings = [f for f in findings if f["severity"] in ["Critical", "High"] and float(f["cvss"]) >= 7.0]
         critical_findings = sorted(critical_findings, key=lambda x: float(x["cvss"]) if x["cvss"] != "N/A" else 0, reverse=True)
 
-        intro_text = (
-            "Обнаруженные уязвимости представляют значительные риски для безопасности сети. "
-            "Игнорирование рекомендаций по их устранению может привести к серьезным последствиям, включая:"
+        intro_text = translations.gettext(
+            "The identified vulnerabilities pose significant risks to network security. "
+            "Ignoring remediation recommendations may lead to serious consequences, including:"
         )
         story.append(Paragraph(intro_text, self.styles[text_style]))
         story.append(Spacer(1, 0.1*inch if booklet else 0.15*inch))
 
         if not critical_findings:
             story.append(Paragraph(
-                "Критические и высокие уязвимости отсутствуют. Однако игнорирование низких и средних уязвимостей "
-                "может привести к накоплению рисков, которые в будущем могут быть использованы для атак.",
+                translations.gettext(
+                    "No critical or high vulnerabilities detected. However, ignoring low and medium "
+                    "vulnerabilities may lead to cumulative risks that could be exploited in the future."
+                ),
                 self.styles[text_style]
             ))
             return
@@ -432,36 +548,38 @@ class ReportGenerator:
             description = finding["description"][:200] + "..." if len(finding["description"]) > 200 else finding["description"]
 
             risk_description = self._generate_risk_description(description, cvss)
-            conclusion = f"<b>{cve_id}</b> ({service} на {ip}, CVSS: {cvss}): {risk_description}"
+            conclusion = f"<b>{cve_id}</b> ({service} on {ip}, CVSS: {cvss}): {risk_description}"
             story.append(Paragraph(conclusion, self.styles[bullet_style]))
             story.append(Spacer(1, 0.05*inch if booklet else 0.1*inch))
 
     def _generate_risk_description(self, description: str, cvss: float) -> str:
+        """Generate risk description based on vulnerability details."""
         description = description.lower()
         risks = []
 
         if any(keyword in description for keyword in ["remote code execution", "rce", "execute arbitrary code"]):
-            risks.append("выполнение произвольного кода, что может привести к полной компрометации системы")
+            risks.append("execution of arbitrary code, potentially leading to full system compromise")
         if any(keyword in description for keyword in ["denial of service", "dos", "crash"]):
-            risks.append("отказ в обслуживании, приводящий к недоступности сервиса")
+            risks.append("denial of service, causing service unavailability")
         if any(keyword in description for keyword in ["information disclosure", "data leak", "sensitive data"]):
-            risks.append("утечка конфиденциальных данных, включая учетные записи и коммерческую информацию")
+            risks.append("leakage of sensitive data, including credentials and commercial information")
         if any(keyword in description for keyword in ["privilege escalation", "gain unauthorized access"]):
-            risks.append("получение несанкционированного доступа или повышение привилегий")
+            risks.append("unauthorized access or privilege escalation")
         if any(keyword in description for keyword in ["authentication bypass", "bypass authentication"]):
-            risks.append("обход аутентификации, позволяющий атакующим получить доступ без учетных данных")
+            risks.append("authentication bypass, allowing attackers to gain access without credentials")
 
         if cvss >= 9.0:
-            risks.append("высокая вероятность эксплуатации в реальных условиях")
+            risks.append("high likelihood of exploitation in real-world conditions")
         elif cvss >= 7.0:
-            risks.append("возможность эксплуатации при наличии определенных условий")
+            risks.append("possible exploitation under certain conditions")
 
         if not risks:
-            risks.append("потенциальная компрометация системы или данных в зависимости от контекста уязвимости")
+            risks.append("potential system or data compromise depending on the vulnerability context")
 
         return "; ".join(risks) + "."
 
     def _get_severity_paragraph(self, severity: str) -> Paragraph:
+        """Return a styled Paragraph for severity."""
         style_map = {
             "Critical": "ReportCritical",
             "High": "ReportHigh",
@@ -471,12 +589,13 @@ class ReportGenerator:
         return Paragraph(severity, self.styles[style_map.get(severity, "ReportBodyText")])
 
     def _generate_report(self, network_data: Dict, findings: List[Dict], filename: str, 
-                        use_gradient: bool, white_text: bool, booklet: bool) -> str:
+                        use_gradient: bool, white_text: bool, booklet: bool, language: str = "en") -> str:
+        """Generate a PDF report with the specified style."""
         pagesize = A5 if booklet else letter
         doc = SimpleDocTemplate(
             filename,
             pagesize=pagesize,
-            title="Отчет об уязвимостях",
+            title="Vulnerability Report",
             author="SecFlash Vulnerability Scanner",
             leftMargin=0.3*inch,
             rightMargin=0.3*inch,
@@ -485,46 +604,63 @@ class ReportGenerator:
         )
 
         story = []
-        add_background = self._add_title_page(story, network_data, use_gradient, white_text, booklet)
+        add_background = self._add_title_page(story, network_data, use_gradient, white_text, booklet, language)
         story.append(PageBreak())
 
-        self._add_executive_summary(story, findings, network_data, white_text, booklet)
-        self._add_vulnerabilities_table(story, findings, white_text, booklet)
-        self._add_recommendations_section(story, findings, white_text, booklet)
-        self._add_conclusions_section(story, findings, white_text, booklet)
+        self._add_executive_summary(story, findings, network_data, white_text, booklet, language)
+        self._add_vulnerabilities_table(story, findings, white_text, booklet, language)
+        self._add_recommendations_section(story, findings, white_text, booklet, language)
+        self._add_conclusions_section(story, findings, white_text, booklet, language)
 
         try:
             doc.build(story, onFirstPage=add_background, onLaterPages=add_background)
-            logging.info(f"PDF отчет успешно создан: {filename}")
+            logging.info(f"PDF report generated successfully: {filename}")
             return filename
         except Exception as e:
-            logging.error(f"Ошибка генерации PDF отчета: {str(e)}")
+            logging.error(f"Failed to generate PDF report: {str(e)}")
             raise
 
-    def generate_no_gradient_black(self, network_data: Dict, findings: List[Dict]) -> str:
+    def generate_no_gradient_black(self, network_data: Dict, findings: List[Dict], language: str = "en") -> str:
+        """Generate a black-text report without gradient background."""
         return self._generate_report(
             network_data, findings, 
-            filename="report_no_gradient_black.pdf",
-            use_gradient=False, white_text=False, booklet=False
+            filename=f"report_no_gradient_black_{language}.pdf",
+            use_gradient=False, white_text=False, booklet=False, language=language
         )
 
-    def generate_no_gradient_black_booklet(self, network_data: Dict, findings: List[Dict]) -> str:
+    def generate_no_gradient_black_booklet(self, network_data: Dict, findings: List[Dict], language: str = "en") -> str:
+        """Generate a black-text booklet report without gradient background."""
         return self._generate_report(
             network_data, findings, 
-            filename="report_no_gradient_black_booklet.pdf",
-            use_gradient=False, white_text=False, booklet=True
+            filename=f"report_no_gradient_black_booklet_{language}.pdf",
+            use_gradient=False, white_text=False, booklet=True, language=language
         )
 
-    def generate_gradient_white_black(self, network_data: Dict, findings: List[Dict]) -> str:
+    def generate_gradient_white_black(self, network_data: Dict, findings: List[Dict], language: str = "en") -> str:
+        """Generate a white-text report with gradient background."""
         return self._generate_report(
             network_data, findings, 
-            filename="report_gradient_white_black.pdf",
-            use_gradient=True, white_text=True, booklet=False
+            filename=f"report_gradient_white_black_{language}.pdf",
+            use_gradient=True, white_text=True, booklet=False, language=language
         )
 
-    def generate_gradient_white_black_booklet(self, network_data: Dict, findings: List[Dict]) -> str:
+    def generate_gradient_white_black_booklet(self, network_data: Dict, findings: List[Dict], language: str = "en") -> str:
+        """Generate a white-text booklet report with gradient background."""
         return self._generate_report(
             network_data, findings, 
-            filename="report_gradient_white_black_booklet.pdf",
-            use_gradient=True, white_text=True, booklet=True
+            filename=f"report_gradient_white_black_booklet_{language}.pdf",
+            use_gradient=True, white_text=True, booklet=True, language=language
         )
+
+    def generate(self, analysis_results: Dict[str, Any]) -> None:
+        """Generate a PDF report from analysis results.
+        
+        Args:
+            analysis_results (Dict[str, Any]): Results from vulnerability analysis
+                containing:
+                - total_vulnerabilities: Total number of vulnerabilities
+                - severity_distribution: Distribution by severity
+                - vulnerability_types: Types of vulnerabilities
+                - recommendations: Security recommendations
+        """
+        # ... existing code ...

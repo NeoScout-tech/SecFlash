@@ -1,0 +1,3 @@
+include secflash/resources/fonts/DejaVuSans.ttf
+include secflash/resources/fonts/DejaVuSans-Bold.ttf
+include secflash/resources/logo.png

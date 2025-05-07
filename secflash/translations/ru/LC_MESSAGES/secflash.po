@@ -1,0 +1,71 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: SecFlash\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-05-07 10:00+0300\n"
+"PO-Revision-Date: 2024-05-07 10:00+0300\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+"X-Generator: Poedit 3.4.2\n"
+
+msgid "Vulnerability Analysis Report"
+msgstr "Отчет об анализе уязвимостей"
+
+msgid "Location"
+msgstr "Местоположение"
+
+msgid "Scan Date"
+msgstr "Дата сканирования"
+
+msgid "Host"
+msgstr "Хост"
+
+msgid "IP Address"
+msgstr "IP-адрес"
+
+msgid "Ports"
+msgstr "Порты"
+
+msgid "Services"
+msgstr "Сервисы"
+
+msgid "Vulnerabilities"
+msgstr "Уязвимости"
+
+msgid "CVE ID"
+msgstr "Идентификатор CVE"
+
+msgid "Description"
+msgstr "Описание"
+
+msgid "Severity"
+msgstr "Уровень опасности"
+
+msgid "CVSS Score"
+msgstr "Оценка CVSS"
+
+msgid "Recommendations"
+msgstr "Рекомендации"
+
+msgid "Critical"
+msgstr "Критический"
+
+msgid "High"
+msgstr "Высокий"
+
+msgid "Medium"
+msgstr "Средний"
+
+msgid "Low"
+msgstr "Низкий"
+
+msgid "None"
+msgstr "Отсутствует"
+
+msgid "Unknown"
+msgstr "Неизвестно" 

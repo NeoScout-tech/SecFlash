@@ -1,53 +1,88 @@
 # SecFlash
 
-Библиотека для анализа уязвимостей безопасности программного обеспечения.
+A powerful Python library for security vulnerability analysis using the National Vulnerability Database (NVD).
 
-## Установка
+## Features
+
+* Comprehensive vulnerability analysis
+* Detailed PDF report generation
+* NVD API integration with rate limiting
+* Local vulnerability database caching
+* Multi-language support
+* Customizable analysis parameters
+
+## Quick Start
 
 ```bash
-poetry add secflash
+# Install using Poetry
+poetry install
+
+# Set up environment
+cp .env.example .env
+# Add your NVD API key to .env
+
+# Basic usage
+from secflash import VulnerabilityAnalyzer
+
+analyzer = VulnerabilityAnalyzer()
+results = analyzer.analyze(keywords=["remote code execution"])
 ```
 
-## Использование
+## Documentation
 
-```python
-from secflash import VulnerabilityAnalyzer, AnalyzerConfig, PDFReportGenerator, ReportConfig
-from pathlib import Path
+Comprehensive documentation is available in the `docs` directory. To build the docs:
 
-# Конфигурация анализатора
-config = AnalyzerConfig(
-    nvd_api_key="your-api-key",
-    database_url="sqlite:///vulnerabilities.db",
-    min_cvss_score=5.0
-)
-
-# Создание анализатора
-analyzer = VulnerabilityAnalyzer(config)
-
-# Анализ уязвимостей
-vulnerabilities = analyzer.analyze_cpe("cpe:2.3:a:microsoft:windows:10:*:*:*:*:*:*:*:*")
-
-# Генерация отчета
-report_config = ReportConfig(
-    output_dir=Path("reports"),
-    title="Отчет об уязвимостях Windows 10"
-)
-report_generator = PDFReportGenerator(report_config)
-report_generator.generate_report(vulnerabilities, Path("reports/windows10_vulns.pdf"))
+```bash
+cd docs
+poetry run make html
 ```
 
-## Основные компоненты
+Then open `docs/_build/html/index.html` in your browser.
 
-- `VulnerabilityAnalyzer` - основной класс для анализа уязвимостей
-- `NVDClient` - клиент для работы с NVD API
-- `SQLAlchemyDatabase` - работа с базой данных
-- `PDFReportGenerator` - генерация отчетов в PDF
+## Development
 
-## Требования
+We use modern Python development tools:
 
-- Python 3.8+
-- Poetry для управления зависимостями
+* Poetry for dependency management
+* pytest for testing
+* black for code formatting
+* mypy for type checking
+* flake8 for linting
 
-## Лицензия
+```bash
+# Install dev dependencies
+poetry install
+
+# Run tests
+poetry run pytest
+
+# Format code
+poetry run black secflash
+poetry run isort secflash
+
+# Type checking
+poetry run mypy secflash
+```
+
+## Architecture
+
+SecFlash follows a modular architecture:
+
+* VulnerabilityAnalyzer: Core analysis engine
+* NVDClient: NVD API interaction
+* ReportGenerator: PDF report generation
+* NVDDatabase: Local data caching
+
+For more details, see the architecture documentation.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+## License
 
 MIT
