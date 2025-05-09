@@ -16,16 +16,31 @@ permissions:
   contents: read
 
 jobs:
-  release-build:
+  test:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+      - name: Установка poetry
+        run: |
+          pip install poetry
+      - name: Установка зависимостей
+        run: |
+          poetry install --with dev
+      - name: Запуск тестов
+        run: |
+          poetry run pytest
 
+  release-build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
       - name: Build release distributions
         run: |
           # NOTE: put your own distribution build steps here.
