@@ -7,7 +7,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="secflash",
-    version="0.1.1.1",
+    version="0.1.2",
     description="A vulnerability scanning and reporting library based on NVD data",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
