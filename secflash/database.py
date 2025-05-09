@@ -102,9 +102,9 @@ class NVDDatabase:
                                         "criteria": match.criteria
                                     } for match in node.cpeMatch if hasattr(match, 'vulnerable') and hasattr(match, 'criteria')
                                 ]
-                            } for node in config.nodes if hasattr(node, 'cpeMatch')
+                            } for node in cve_config.nodes if hasattr(node, 'cpeMatch')
                         ]
-                    } for config in cve.configurations if hasattr(config, 'nodes')
+                    } for cve_config in cve.configurations if hasattr(cve_config, 'nodes')
                 ])
 
                 cursor.execute("""
