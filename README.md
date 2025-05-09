@@ -1,88 +1,86 @@
-# SecFlash
+# SecFlash - Vulnerability Hunter
 
-A powerful Python library for security vulnerability analysis using the National Vulnerability Database (NVD).
+![SecFlash](https://i.imgur.com/CyRxxXa.png)
 
-## Features
+Yo, welcome to **SecFlash** — your new secret weapon for hunting security holes and dropping pro-level vulnerability reports. Built by the cyber wizards at [NeoScout](https://neoscout.ru/), this Python beast chews through networks, sniffs out CVEs, and spits out slick PDF reports. Plug it in, point it at your network, and let it do the dirty work.
 
-* Comprehensive vulnerability analysis
-* Detailed PDF report generation
-* NVD API integration with rate limiting
-* Local vulnerability database caching
-* Multi-language support
-* Customizable analysis parameters
+## What Does SecFlash Do?
+- **Scans your network** for services and matches them to known vulnerabilities (CVE/NVD style).
+- **Caches and stores** all the juicy findings in SQLite so you don't lose a thing.
+- **Generates PDF reports** that even your boss will understand (with localization, because we're global).
+- **Flexible and extensible** — hack it, script it, automate it, make it yours.
 
-## Quick Start
+## Features That Hit Hard
+- **Service & CPE Scanning**: Finds what's running and checks it against the NVD.
+- **Smart Caching**: No more hammering the API — results are saved locally.
+- **PDF Reports**: One command, instant executive summary.
+- **Localization**: Reports in your language (well, at least English and Russian for now).
+- **API Key Support**: Use your NVD API key for turbo mode (or go slow and free).
 
+## Requirements
+- Python 3.11+
+- pip (or Poetry, if you're fancy)
+
+## Installation
 ```bash
-# Install using Poetry
-poetry install
+pip install secflash
+```
 
-# Set up environment
-cp .env.example .env
-# Add your NVD API key to .env
-
-# Basic usage
+## How To Wield This Power
+Here's how you unleash SecFlash on your network:
+```python
 from secflash import VulnerabilityAnalyzer
 
+network_data = {
+    "location": "Your Corp",
+    "hosts": [
+        {
+            "ip": "192.168.1.10",
+            "status": "active",
+            "ports": [80, 443],
+            "services": ["Apache httpd 2.4.49"],
+            "time": "2024-05-05 10:00:00"
+        }
+    ]
+}
+
 analyzer = VulnerabilityAnalyzer()
-results = analyzer.analyze(keywords=["remote code execution"])
+findings = analyzer.analyze_network(network_data)
+# Drop all the reports you need
+analyzer.generate_all_reports(network_data)
 ```
 
-## Documentation
+## Project Structure
+```
+secflash/
+├── vulnerability_analyzer.py   # The mastermind
+├── report_generator.py         # PDF wizardry
+├── nvd_client.py               # NVD API wrangler
+├── database.py                 # SQLite muscle
+├── config.py                   # All your settings
+└── ...                         # More magic
+```
+tests/ — Unit tests to keep you safe
 
-Comprehensive documentation is available in the `docs` directory. To build the docs:
-
+## Testing
 ```bash
-cd docs
-poetry run make html
+pytest
 ```
 
-Then open `docs/_build/html/index.html` in your browser.
-
-## Development
-
-We use modern Python development tools:
-
-* Poetry for dependency management
-* pytest for testing
-* black for code formatting
-* mypy for type checking
-* flake8 for linting
-
-```bash
-# Install dev dependencies
-poetry install
-
-# Run tests
-poetry run pytest
-
-# Format code
-poetry run black secflash
-poetry run isort secflash
-
-# Type checking
-poetry run mypy secflash
-```
-
-## Architecture
-
-SecFlash follows a modular architecture:
-
-* VulnerabilityAnalyzer: Core analysis engine
-* NVDClient: NVD API interaction
-* ReportGenerator: PDF report generation
-* NVDDatabase: Local data caching
-
-For more details, see the architecture documentation.
+## Roadmap
+- **100%**: Network & vulnerability scanning, PDF reports, caching, localization, API key support
+- **75%**: More report templates, more languages
+- **50%**: Web dashboard for your findings
+- **25%**: Real-time scan progress, cloud sync
+- **10%**: Push notifications, mobile app, AI-powered recommendations
 
 ## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+Got skills? Want to make SecFlash even meaner? Fork, hack, PR — we love it. Ideas, bugfixes, new features, or just want to say hi? Hit us up!
 
 ## License
+MIT — use it, break it, improve it, just give credit.
 
-MIT
+## Contact
+Drop a line at [saikonohack](mailto:saintklovus@gmail.com) or open an issue. We're always up for a chat.
+
+**NeoScout — Scan. Analyze. Take control.**

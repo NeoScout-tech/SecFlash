@@ -3,21 +3,13 @@ Database management for storing and retrieving NVD vulnerability data.
 """
 
 import sqlite3
-import logging
 import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from .config import config
+from .logger import get_logger
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("database.log"),
-        logging.StreamHandler()
-    ]
-)
+logger = get_logger(__name__)
 
 
 class NVDDatabase:
@@ -34,14 +26,14 @@ class NVDDatabase:
                 self.conn = sqlite3.connect(self.db_path)
                 return self.conn
             except sqlite3.Error as e:
-                logging.error(f"Failed to connect to database: {str(e)}")
+                logger.error(f"Failed to connect to database: {str(e)}")
                 raise
         return self.conn
 
     def _initialize_database(self):
         """Initialize the SQLite database."""
         try:
-            logging.info(f"Initializing database at {self.db_path}")
+            logger.info(f"Initializing database at {self.db_path}")
             conn = self._connect_db()
             cursor = conn.cursor()
             cursor.execute("""
@@ -60,14 +52,14 @@ class NVDDatabase:
             """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_cpe ON vulnerabilities(cpe)")
             conn.commit()
-            logging.info("Database initialized successfully")
+            logger.info("Database initialized successfully")
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='vulnerabilities'")
             if cursor.fetchone():
-                logging.info("Vulnerabilities table exists")
+                logger.info("Vulnerabilities table exists")
             else:
-                logging.error("Vulnerabilities table was not created")
+                logger.error("Vulnerabilities table was not created")
         except sqlite3.Error as e:
-            logging.error(f"Failed to initialize database: {str(e)}")
+            logger.error(f"Failed to initialize database: {str(e)}")
             raise
 
     def save_vulnerabilities(self, cves: List[Any], cpe: str):
@@ -92,12 +84,12 @@ class NVDDatabase:
                             cvss_score = cve.metrics.cvssMetricV2[0].baseScore
                             cvss_vector = cve.metrics.cvssMetricV2[0].vectorString
                         else:
-                            logging.warning(f"No CVSS metrics found for CVE {cve.id}")
+                            logger.warning(f"No CVSS metrics found for CVE {cve.id}")
                     else:
-                        logging.warning(f"No metrics attribute for CVE {cve.id}")
+                        logger.warning(f"No metrics attribute for CVE {cve.id}")
                 except Exception as e:
-                    logging.error(f"Error extracting CVSS for CVE {cve.id}: {str(e)}")
-                    continue  # Skip this CVE if CVSS extraction fails
+                    logger.error(f"Error extracting CVSS for CVE {cve.id}: {str(e)}")
+                    continue
 
                 references = json.dumps([ref.url for ref in cve.references])
                 configurations = json.dumps([
@@ -133,9 +125,9 @@ class NVDDatabase:
                 ))
                 saved_count += 1
             conn.commit()
-            logging.info(f"Saved {saved_count} vulnerabilities for CPE {cpe}")
+            logger.info(f"Saved {saved_count} vulnerabilities for CPE {cpe}")
         except sqlite3.Error as e:
-            logging.error(f"Failed to save vulnerabilities: {str(e)}")
+            logger.error(f"Failed to save vulnerabilities: {str(e)}")
             raise
 
     def load_vulnerabilities(self) -> Dict[str, Any]:
@@ -165,7 +157,7 @@ class NVDDatabase:
                 vulnerabilities.append(vuln)
             return {"vulnerabilities": vulnerabilities}
         except sqlite3.Error as e:
-            logging.error(f"Failed to load vulnerabilities: {str(e)}")
+            logger.error(f"Failed to load vulnerabilities: {str(e)}")
             return {"vulnerabilities": []}
 
     def load_vulnerabilities_by_cpe(self, cpe: str) -> Dict[str, Any]:
@@ -195,7 +187,7 @@ class NVDDatabase:
                 vulnerabilities.append(vuln)
             return {"vulnerabilities": vulnerabilities}
         except sqlite3.Error as e:
-            logging.error(f"Failed to load vulnerabilities for CPE {cpe}: {str(e)}")
+            logger.error(f"Failed to load vulnerabilities for CPE {cpe}: {str(e)}")
             return {"vulnerabilities": []}
 
     def is_data_fresh(self, cpe: str) -> bool:
@@ -211,7 +203,7 @@ class NVDDatabase:
             freshness_threshold = datetime.now() - timedelta(days=config.DATA_FRESHNESS_DAYS)
             return last_modified >= freshness_threshold
         except sqlite3.Error as e:
-            logging.error(f"Failed to check data freshness for CPE {cpe}: {str(e)}")
+            logger.error(f"Failed to check data freshness for CPE {cpe}: {str(e)}")
             return False
 
     def __del__(self):

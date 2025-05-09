@@ -11,23 +11,13 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-import logging
 from typing import Dict, List, Any
 from datetime import datetime
 from babel.support import Translations
-
 from .config import config
+from .logger import get_logger
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("report_generator.log"),
-        logging.StreamHandler()
-    ]
-)
-
+logger = get_logger(__name__)
 
 class ReportGenerator:
     """A class for generating security vulnerability reports.
@@ -61,11 +51,11 @@ class ReportGenerator:
                 pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', font_bold_path))
                 self.font_name = 'DejaVuSans'
                 self.font_bold = 'DejaVuSans-Bold'
-                logging.info("DejaVuSans fonts loaded successfully")
+                logger.info("DejaVuSans fonts loaded successfully")
             else:
                 raise FileNotFoundError("DejaVuSans fonts not found")
         except Exception as e:
-            logging.warning(f"Font loading error: {str(e)}. Using Helvetica")
+            logger.warning(f"Font loading error: {str(e)}. Using Helvetica")
             self.font_name = 'Helvetica'
             self.font_bold = 'Helvetica-Bold'
 
@@ -170,7 +160,7 @@ class ReportGenerator:
 
         self.logo_path = config.LOGO_PATH
         if not os.path.exists(self.logo_path):
-            logging.warning("Logo file not found, reports will be generated without a logo")
+            logger.warning("Logo file not found, reports will be generated without a logo")
 
     def _load_translations(self, language: str) -> Translations:
         """Load translations for the specified language."""
@@ -180,10 +170,10 @@ class ReportGenerator:
                 locales=[language],
                 domain='messages'
             )
-            logging.info(f"Loaded translations for language: {language}")
+            logger.info(f"Loaded translations for language: {language}")
             return translations
         except Exception as e:
-            logging.error(f"Failed to load translations for {language}: {str(e)}")
+            logger.error(f"Failed to load translations for {language}: {str(e)}")
             return Translations.load(
                 dirname=os.path.join(os.path.dirname(__file__), 'translations'),
                 locales=['en'],
@@ -614,10 +604,10 @@ class ReportGenerator:
 
         try:
             doc.build(story, onFirstPage=add_background, onLaterPages=add_background)
-            logging.info(f"PDF report generated successfully: {filename}")
+            logger.info(f"PDF report generated successfully: {filename}")
             return filename
         except Exception as e:
-            logging.error(f"Failed to generate PDF report: {str(e)}")
+            logger.error(f"Failed to generate PDF report: {str(e)}")
             raise
 
     def generate_no_gradient_black(self, network_data: Dict, findings: List[Dict], language: str = "en") -> str:
