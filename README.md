@@ -77,6 +77,10 @@ pytest
 ## Contributing
 Got skills? Want to make SecFlash even meaner? Fork, hack, PR — we love it. Ideas, bugfixes, new features, or just want to say hi? Hit us up!
 
+<a href="https://github.com/neoscout-tech/secflash/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=neoscout-tech/secflash" />
+</a>
+
 ## License
 MIT — use it, break it, improve it, just give credit.
 
