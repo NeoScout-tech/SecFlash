@@ -1,4 +1,3 @@
-# secflash/nvd_client.py
 """
 Client for interacting with the NVD API to fetch vulnerability data.
 """

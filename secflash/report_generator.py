@@ -1,4 +1,3 @@
-# secflash/report_generator.py
 """
 PDF report generator for vulnerability scan results.
 """
@@ -13,7 +12,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from typing import Dict, List, Any
 from datetime import datetime
-from babel.support import Translations
+from babel.support import Translations, NullTranslations
 from .config import config
 from .logger import get_logger
 
@@ -162,7 +161,7 @@ class ReportGenerator:
         if not os.path.exists(self.logo_path):
             logger.warning("Logo file not found, reports will be generated without a logo")
 
-    def _load_translations(self, language: str) -> Translations:
+    def _load_translations(self, language: str) -> NullTranslations:
         """Load translations for the specified language."""
         try:
             translations = Translations.load(
@@ -653,4 +652,3 @@ class ReportGenerator:
                 - vulnerability_types: Types of vulnerabilities
                 - recommendations: Security recommendations
         """
-        # ... existing code ...
